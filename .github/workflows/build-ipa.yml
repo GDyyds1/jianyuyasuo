@@ -1,0 +1,47 @@
+name: Build unsigned IPA
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble Xcode project from flat files
+        run: |
+          mkdir -p JianyuZip.xcodeproj/xcshareddata/xcschemes
+          cp project.pbxproj JianyuZip.xcodeproj/project.pbxproj
+          cp JianyuZip.xcscheme JianyuZip.xcodeproj/xcshareddata/xcschemes/JianyuZip.xcscheme
+          find JianyuZip.xcodeproj -type f
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Build (no signing)
+        run: |
+          xcodebuild \
+            -project JianyuZip.xcodeproj \
+            -scheme JianyuZip \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            ONLY_ACTIVE_ARCH=NO | tail -30
+
+      - name: Package into Payload/*.ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/JianyuZip.app Payload/
+          zip -qr jianyu-zip-unsigned.ipa Payload
+          ls -lh jianyu-zip-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jianyu-zip-ipa
+          path: jianyu-zip-unsigned.ipa
